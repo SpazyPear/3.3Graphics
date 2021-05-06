@@ -1,8 +1,14 @@
 import {build} from "./buildFloor.js";
+import {resizeFloor} from "./buildFloor.js";
 import {PointerLockControls} from "../Dependencies/PointerLockControls.js";
 import * as THREE from "../Dependencies/three.module.js";
 import {loadModel} from "./loadModels.js";
+import {resizeModel} from "./loadModels.js";
 import { Vector3 } from "../Dependencies/three.module.js";
+import { Color } from "../Dependencies/three.module.js";
+import {GUI} from '../Dependencies/dat.gui.module.js';
+import { BoxGeometry } from "../Dependencies/three.module.js";
+import { PointLight } from "../Dependencies/three.module.js";
 
 var camera, scene, renderer, controls, cameralight, ambientlight;
 var controlsEnabled = true;
@@ -21,6 +27,33 @@ var falling = false;
 var called = false;
 var timeS = 0;
 var clock;
+var models = new THREE.Group();
+
+var options = {
+	light: {
+	moonIntensity: 0,
+	ambientIntensity: 0.5,
+	torchIntensity: 0.1
+	},
+	model: {
+		size: 0.3,
+		floor: 700
+	}
+  };
+  
+  var gui = new GUI();
+  
+
+  //gui.add(options.light, 'moonIntensity', 0, 10).listen();
+  gui.add(options.light, 'ambientIntensity', 0, 2).listen();
+  //gui.add(options.light, 'torchIntensity', 0, 2).listen();
+  gui.add(options.model, "size").onFinishChange(function (value) {
+    resizeModel(value);
+});
+gui.add(options.model, "floor").onFinishChange(function (value) {
+    resizeFloor(value);
+});
+
 
 
 function init() {
@@ -47,19 +80,20 @@ function init() {
 	}
 	, false );
 
-	//adding light
+	//adding moon
+		
+	var moon_geo = new THREE.SphereGeometry(30, 30, 30);
+	var moon_mat = new THREE.MeshPhongMaterial();
+	const texture = new THREE.TextureLoader().load("../Models/textures/moonTexture.jpg");
+	moon_mat.map = texture;
+	moon_mat.color = new THREE.Color(1, 1, 1); //
+	var moon_mesh = new THREE.Mesh(moon_geo, moon_mat);
+	scene.add(moon_mesh);
+	moon_mesh.position.y = 1000;
+	moon_mesh.position.z = -10;
 
-		cameralight = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 4);
-		cameralight.position.set(new Vector3(10, 50, 0));
-		
-		cameralight.castShadow = true;
-		cameralight.directionalLightShadow = true;
-		
-		ambientlight = new THREE.AmbientLight(new THREE.Color(1, 1, 1), 0.5);
-		camera.add(cameralight);
-		scene.add(ambientlight);
-		const helper = new THREE.DirectionalLightHelper( cameralight, 20 );
-		scene.add( helper );
+	
+
 			
 
 controls.enabled = true;
@@ -133,7 +167,44 @@ controls.enabled = true;
 	document.addEventListener( 'keyup', onKeyUp, false );
 	window.addEventListener( 'resize', onWindowResize, false );
 	
-	build();
+	build(700);
+	addLight();
+}
+var torchGroup = new THREE.Group();
+function addLight() {
+	
+	cameralight = new THREE.PointLight(new THREE.Color(0.7, 0.7, 1), options.light.moonIntensity);
+	cameralight.position.y = 100;
+	cameralight.position.z = -10;
+	
+	cameralight.castShadow = true;
+	for (let x = 0; x < 8; x++) {
+		
+			var torchlight = new THREE.PointLight(new THREE.Color(0.7, 0.7, 1), options.light.torchIntensity);
+			torchlight.castShadow = true;
+			var cordX = (400*Math.random()) * Math.round(Math.random()) ? 1 : -1;
+			var cordZ = (400*Math.random()) * Math.round(Math.random()) ? 1 : -1;
+			torchlight.position.x = cordX
+			torchlight.position.z = cordZ;
+			torchlight.position.y = 3;
+
+			var torch_geo = new BoxGeometry(0.5, 2, 2);
+			var torch_mat = new THREE.MeshPhongMaterial();
+			torch_mat.color = new THREE.Color(1, 1, 1);
+			var torch = new THREE.Mesh(torch_geo, torch_mat);
+			torch.position.y = 1;
+			torch.position.x - cordX;
+			torch.position.z = cordZ;
+			//scene.add(torch);
+
+			torchGroup.add(torchlight)
+		}
+	
+
+	ambientlight = new THREE.AmbientLight(new THREE.Color(1, 1, 1), options.light.ambientIntensity);
+	camera.add(cameralight);
+	scene.add(ambientlight);
+	scene.add(torchGroup);
 }
 
 function onWindowResize() {
@@ -151,10 +222,18 @@ function getControls() {
 }
 var step = 1;
 
-function animate() {
+function updateGUI() {
+	cameralight.intensity = options.light.moonIntensity;
+	ambientlight.intensity = options.light.ambientIntensity;
+	torchGroup.intensity = options.light.torchIntensity;
+	//console.log(options.light.torchIntensity);
 
-	cameralight.target.position.set = new Vector3(controls.getObject().position.x, controls.getObject().position.y, controls.getObject().position.z);
+}
+
+
+function animate() {
 	requestAnimationFrame( animate );
+	
 	if ( controlsEnabled == true ) {
 
 	 var time = performance.now();
@@ -190,7 +269,8 @@ function animate() {
 		controls.getObject().position.y = 4;
 	}
 
-	
+
+	updateGUI();
 	
 	renderer.render( scene, camera );
 	
@@ -217,12 +297,20 @@ function animate() {
 			controls.getObject().position.y -= 1/step;
 			step -= 0.1;
 		}
-		console.log(controls.getObject().position.y);			
+		//console.log(controls.getObject().position.y);			
 	}
+
+
+
+
 
 
 init();
 animate();
 loadModel('../Models/DeadTree1.fbx');
+
+
+
+
 
 export {getScene, getControls};

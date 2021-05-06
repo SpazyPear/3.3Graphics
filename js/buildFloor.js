@@ -1,31 +1,49 @@
 import * as THREE from "../Dependencies/three.module.js";
 import {getScene} from "./setup.js";
 
-function build() {
+var floor;
 
-	var texture = THREE.ImageUtils.loadTexture( "../Models/textures/sand.jpg");
-				texture.wrapS = THREE.RepeatWrapping; 
-				texture.wrapT = THREE.RepeatWrapping;
-				texture.repeat.set( 10, 10 ); 
-    
-    var material_box = new THREE.MeshLambertMaterial({map: texture});
-				material_box.color=  new THREE.Color(1,1,1);
+function build(size) {
+
+	var material_box = new THREE.MeshPhongMaterial();
+
+	const texture = new THREE.TextureLoader().load("../Models/textures/sand.jpg");
+	material_box.map = texture;
+
+	const normalMap = new THREE.TextureLoader().load("../Models/textures/sandNormal.png");
+	material_box.normalMap = normalMap;
+
+	const displacementMap = new THREE.TextureLoader().load("../Models/textures/sandDisplacement.png")
+	material_box.displacementMap = displacementMap;
 				material_box.wireframe=false;
 				
-				var geometry_box = new THREE.BoxGeometry(400,0,400,64,64,64);
+				var geometry_box = new THREE.BoxGeometry(size,0,size,64,64,64);
+				floor = new THREE.Mesh(geometry_box,material_box);
 				
+				floor.position.y=0;
+	
+				//BoxMesh.castShadow = false;
+        		floor.receiveShadow = true;
+				floor.geometry.computeVertexNormals();
+				getScene().add(floor);
 
-				var BoxMesh = new THREE.Mesh(geometry_box,material_box);
-				
-				var normalMap = THREE.ImageUtils.loadTexture('../Models/textures/sandNormal.png', undefined, function () {
-					BoxMesh.material.normalMap = normalMap;
-					//renderer.render(getScene(), camera);
-				});
-				BoxMesh.position.y=0;
-				BoxMesh.material.needsUpdate = true;
-				BoxMesh.recieveShadow = true;
-				getScene().add(BoxMesh);
-				
+	var material_sky = new THREE.MeshPhongMaterial();
+	material_sky.side = THREE.DoubleSide;
+
+	const sky_texture = new THREE.TextureLoader().load("../Models/textures/sky.jpg");
+	material_sky.map = sky_texture;
+	
+	
+	var sky_geo = new THREE.SphereGeometry(1000, 1000, 1000);
+	var sky = new THREE.Mesh(sky_geo, material_sky);
+	
+	getScene().add(sky);
+
 }
 
-export {build};
+function resizeFloor(size) {
+	getScene().remove(floor);
+	build(size);
+}
+
+export {build, resizeFloor};
